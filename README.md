@@ -8,7 +8,7 @@ The project has two complementary halves:
 
 1. **A custom stabilizer engine** (`qecsim/pauli.py`,
    `qecsim/stabilizer_code.py`, `qecsim/codes.py`, `qecsim/encoding_circuits.py`,
-   `qecsim/simulate.py`) implementing the binary symplectic (Gottesman) theory,
+   `qecsim/simulate.py`) implementing the binary symplectic (Gottesman) formalism,
    applied to four classic small codes: the 3-qubit bit-flip and phase-flip codes,
    the Steane `[[7,1,3]]` CSS code, and the Shor `[[9,1,3]]` code, including an
    explicit statevector simulation of the encoding circuit.
@@ -87,4 +87,4 @@ References for the codes and theory implemented here:
 
 Further reading:
 - M. A. Nielsen & I. L. Chuang, *Quantum Computation and Quantum Information* (Cambridge University Press) 
-  - Ch. 10 covers the stabilizer theory and fault tolerance in depth.
+  - Ch. 10 covers the stabilizer formalism and fault tolerance in depth.

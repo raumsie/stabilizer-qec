@@ -1,4 +1,4 @@
-"""Tests for the custom stabilizer-theory small-code toolkit."""
+"""Tests for the custom stabilizer-formalism small-code toolkit."""
 
 import itertools
 

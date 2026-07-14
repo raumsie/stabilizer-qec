@@ -1,1 +1,1 @@
-"""qecsim: custom stabilizer-theory toolkit for small quantum error-correcting codes."""
+"""qecsim: custom stabilizer-formalism toolkit for small quantum error-correcting codes."""

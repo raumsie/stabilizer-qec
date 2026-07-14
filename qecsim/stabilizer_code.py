@@ -1,4 +1,4 @@
-"""Stabilizer codes for arbitrary [[n, k]] parameters (Gottesman theory).
+"""Stabilizer codes for arbitrary [[n, k]] parameters (Gottesman formalism).
 
 A code is defined by its stabilizer generators and logical operators; an
 error is diagnosed by its syndrome (which generators it anticommutes
