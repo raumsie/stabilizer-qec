@@ -1,7 +1,5 @@
-"""Visualizations for the rotated surface code threshold study.
-
-Uses a fixed colorblind-safe palette (blue -> aqua -> yellow) plus
-distinct marker shapes per series.
+"""
+Visualizations for the rotated surface code threshold study.
 """
 
 from __future__ import annotations
@@ -12,6 +10,9 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import math
+
+from matplotlib.ticker import FixedLocator, FuncFormatter, LogLocator, NullFormatter, NullLocator
 
 from qecsim import surface_code
 
@@ -26,11 +27,30 @@ _TEXT_SECONDARY = "#52514e"
 _TEXT_MUTED = "#898781"
 
 
+def _midpoint_subs(major_subs: tuple[float, ...]) -> tuple[float, ...]:
+    """Geometric midpoint between each pair of consecutive major sub-ticks,
+    used as minor tick locations
+    """
+    subs = list(major_subs) + [major_subs[0] * 10]
+    return tuple(math.sqrt(a * b) for a, b in zip(subs, subs[1:]))
+
+
+def _log_tick_label(x: float, _pos=None) -> str:
+    if x <= 0:
+        return ""
+    exponent = math.floor(math.log10(x) + 1e-9)
+    mantissa = round(x / 10**exponent, 1)
+    if abs(mantissa - round(mantissa)) < 1e-9:
+        mantissa_str = f"{round(mantissa):d}"
+    else:
+        mantissa_str = f"{mantissa:.1f}"
+    if mantissa_str == "1":
+        return f"$10^{{{exponent}}}$"
+    return f"${mantissa_str}\\times10^{{{exponent}}}$"
+
+
 def plot_threshold(results: list[dict], save_path: str) -> None:
-    """Plot the headline threshold figure: one line per code distance,
-    physical error rate on a log x-axis, per-round logical error rate on a
-    log y-axis. If the curves visibly cross, that marks the approximate
-    circuit-level threshold; annotated only when the data shows one cleanly.
+    """Plot the headline threshold figure
     """
     by_distance: dict[int, list[dict]] = defaultdict(list)
     for row in results:
@@ -66,6 +86,16 @@ def plot_threshold(results: list[dict], save_path: str) -> None:
 
     ax.set_xscale("log")
     ax.set_yscale("log")
+
+    # Tick marks sit on the actual sampled p values (a log-scale FixedLocator)
+    # so they line up with the data, rather than an abstract evenly-spaced
+    # scheme that wouldn't match where the markers actually are.
+    y_major_subs = (1.0,)
+    ax.xaxis.set_major_locator(FixedLocator(sorted({r["p"] for r in results})))
+    ax.xaxis.set_major_formatter(FuncFormatter(_log_tick_label))
+    ax.xaxis.set_minor_locator(NullLocator())
+    ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=_midpoint_subs(y_major_subs)))
+    ax.yaxis.set_minor_formatter(NullFormatter())
     ax.set_xlabel("Physical error rate, $p$", color=_TEXT_PRIMARY, fontsize=11)
     ax.set_ylabel(
         "Logical error rate per round", color=_TEXT_PRIMARY, fontsize=11
@@ -79,12 +109,16 @@ def plot_threshold(results: list[dict], save_path: str) -> None:
     )
 
     ax.grid(True, which="major", color=_GRIDLINE, linewidth=0.8, zorder=0)
-    ax.grid(True, which="minor", color=_GRIDLINE, linewidth=0.4, alpha=0.6, zorder=0)
+    ax.grid(True, which="minor", color=_GRIDLINE, linewidth=0.4, zorder=0)
     for spine in ("top", "right"):
         ax.spines[spine].set_visible(False)
     for spine in ("left", "bottom"):
         ax.spines[spine].set_color(_AXIS)
     ax.tick_params(colors=_TEXT_MUTED, labelsize=9)
+    # The sampled p values bunch up at the high end (e.g. 0.013/0.016/0.02),
+    # so horizontal labels there collide; angle them to keep every gridline
+    # labeled and readable.
+    plt.setp(ax.get_xticklabels(), rotation=40, ha="right", rotation_mode="anchor")
 
     legend = ax.legend(
         frameon=False, loc="lower right", fontsize=10, labelcolor=_TEXT_PRIMARY
@@ -95,14 +129,16 @@ def plot_threshold(results: list[dict], save_path: str) -> None:
     crossing_p = _find_crossing(by_distance, distances)
     if crossing_p is not None:
         ax.axvline(crossing_p, color=_TEXT_MUTED, linewidth=1, linestyle="--", zorder=1)
+        y_lo, y_hi = ax.get_ylim()
+        y_mid = math.sqrt(y_lo * y_hi)  # geometric mean: visual midpoint on a log axis
         ax.text(
             crossing_p,
-            ax.get_ylim()[1],
-            "  apparent threshold",
+            y_mid,
+            "apparent threshold  ",
             color=_TEXT_SECONDARY,
             fontsize=8.5,
             rotation=90,
-            va="top",
+            va="center",
             ha="left",
         )
 
@@ -125,17 +161,18 @@ def _find_crossing(by_distance: dict[int, list[dict]], distances: list[int]):
     if len(common_ps) < 2:
         return None
 
-    diffs = [rows_max[p] - rows_min[p] for p in common_ps]
+    # On a log-log plot, matplotlib draws straight lines between points in
+    # (log p, log rate) space, not (p, rate) space -- so the crossing must
+    # be found on log(rate), or the marked point lands visibly off from
+    # where the rendered lines actually intersect.
+    diffs = [math.log(rows_max[p]) - math.log(rows_min[p]) for p in common_ps]
     for i in range(len(diffs) - 1):
         if diffs[i] == 0:
             return common_ps[i]
         if (diffs[i] < 0) != (diffs[i + 1] < 0):
-            # Interpolate in log-p space for a better estimate.
             p0, p1 = common_ps[i], common_ps[i + 1]
             f0, f1 = diffs[i], diffs[i + 1]
             frac = abs(f0) / (abs(f0) + abs(f1))
-            import math
-
             log_p = math.log(p0) + frac * (math.log(p1) - math.log(p0))
             return math.exp(log_p)
     return None
@@ -197,7 +234,7 @@ def plot_lattice(distance: int, save_path: str) -> None:
     ax.set_ylabel("y", color=_TEXT_PRIMARY)
     ax.set_aspect("equal")
     ax.invert_yaxis()
-    ax.legend(frameon=False, loc="upper right", labelcolor=_TEXT_PRIMARY)
+    ax.legend(frameon=False, loc="lower left", bbox_to_anchor=(-0.10, -0.15), labelcolor=_TEXT_PRIMARY)
     ax.grid(True, color=_GRIDLINE, linewidth=0.6, zorder=0)
     for spine in ax.spines.values():
         spine.set_color(_AXIS)

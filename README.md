@@ -43,15 +43,15 @@ pytest tests/ -v
 
 **Small codes - logical vs. physical error rate** (depolarizing noise, 20,000 trials/point):
 
-![Small codes logical vs physical error rate](figures/small_codes_logical_vs_physical.png)
+<img src="figures/small_codes_logical_vs_physical.png" alt="Small codes logical vs physical error rate" width="700">
 
 **Rotated surface code - threshold plot** (circuit-level depolarizing noise, Stim + PyMatching MWPM, 10,000 shots/point):
 
-![Surface code threshold plot](figures/surface_code_threshold.png)
+<img src="figures/surface_code_threshold.png" alt="Surface code threshold plot" width="700">
 
 **Rotated surface code lattice** (distance 5):
 
-![Surface code lattice](figures/surface_code_lattice_d5.png)
+<img src="figures/surface_code_lattice_d5.png" alt="Surface code lattice" width="700" height="700">
 
 ## Project layout
 

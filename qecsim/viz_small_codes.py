@@ -1,14 +1,35 @@
-"""Visualization of logical vs. physical error rate for the small codes.
-
-Colors come from a fixed, colorblind-safe palette (slots assigned by
-series identity, not cycled); each series also gets a distinct marker
-shape, and the break-even y = x line is a recessive dashed gray reference.
 """
+Visualization of logical vs. physical error rate for the small codes.
+"""
+
+import math
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator, FuncFormatter, LogLocator, NullFormatter, NullLocator
+
+_MINOR_DECADE_SUB = math.sqrt(10)
+
+
+def _log_tick_label(x: float, _pos=None) -> str:
+    """Format a log-axis tick as mantissa x 10^exponent, rounding the
+    mantissa to 2 significant figures rather than showing raw
+    floating-point precision.
+    """
+    if x <= 0:
+        return ""
+    exponent = math.floor(math.log10(x) + 1e-9)
+    mantissa = round(x / 10**exponent, 1)
+    if abs(mantissa - round(mantissa)) < 1e-9:
+        mantissa_str = f"{round(mantissa):d}"
+    else:
+        mantissa_str = f"{mantissa:.1f}"
+    if mantissa_str == "1":
+        return f"$10^{{{exponent}}}$"
+    return f"${mantissa_str}\\times10^{{{exponent}}}$"
+
 
 # Fixed slot per series so the same code always gets the same color.
 _SERIES_STYLE = {
@@ -35,9 +56,6 @@ def plot_logical_vs_physical(results_by_code: dict, save_path: str) -> None:
     for code_name, results in results_by_code.items():
         results = sorted(results, key=lambda r: r["p"])
         ps = [r["p"] for r in results]
-        # Log scale can't show a rate of exactly 0 (no logical errors observed).
-        # Floor such points at 1/(2*num_trials) and mark them hollow as an
-        # upper-bound placeholder rather than a direct measurement.
         rates = []
         is_zero_count = []
         for r in results:
@@ -51,8 +69,7 @@ def plot_logical_vs_physical(results_by_code: dict, save_path: str) -> None:
         errs = [r["std_error"] for r in results]
         all_ps.extend(ps)
 
-        style = _SERIES_STYLE.get(code_name, {"color": "#4a3aa7", "marker": "x",
-                                                "label": code_name})
+        style = _SERIES_STYLE.get(code_name, {"color": "#4a3aa7", "marker": "x", "label": code_name})
         ax.errorbar(
             ps, rates, yerr=errs,
             color=style["color"], marker=style["marker"], markersize=7,
@@ -80,8 +97,16 @@ def plot_logical_vs_physical(results_by_code: dict, save_path: str) -> None:
     ax.set_title("Logical vs. physical error rate: small stabilizer codes",
                  color=_PRIMARY_INK, fontsize=13, fontweight="bold")
 
-    ax.grid(True, which="both", linestyle="-", linewidth=0.5, color="#e1e0d9",
-             alpha=0.7)
+    # Tick marks sit on the actual sampled p values (a log-scale FixedLocator)
+    # so they line up with the data, rather than an abstract evenly-spaced
+    # scheme that wouldn't match where the markers actually are.
+    ax.xaxis.set_major_locator(FixedLocator(sorted(set(all_ps))))
+    ax.xaxis.set_major_formatter(FuncFormatter(_log_tick_label))
+    ax.xaxis.set_minor_locator(NullLocator())
+    ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=(_MINOR_DECADE_SUB,)))
+    ax.yaxis.set_minor_formatter(NullFormatter())
+    ax.grid(True, which="major", linestyle="-", linewidth=0.8, color="#e1e0d9")
+    ax.grid(True, which="minor", linestyle="-", linewidth=0.4, color="#e1e0d9")
     ax.tick_params(colors=_MUTED_INK)
     for spine in ax.spines.values():
         spine.set_color("#c3c2b7")
